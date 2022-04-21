@@ -543,7 +543,7 @@ func isProfitable(logs []*types.Log) bool {
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	debug.Memsize.Add("node", stack)
-
+	fmt.Println("my custom node started..")
 	// Start up the node itself
 	utils.StartNode(ctx, stack)
 
