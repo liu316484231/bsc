@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
 	"math/big"
 	"os"
 	"reflect"
@@ -166,6 +167,37 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 	return stack, backend
 }
+
+// makeFullNode loads geth configuration and creates the Ethereum backend.
+func makeFullNodeWithEthereum(ctx *cli.Context) (*node.Node, ethapi.Backend, *eth.Ethereum) {
+	stack, cfg := makeConfigNode(ctx)
+	if ctx.GlobalIsSet(utils.OverrideBerlinFlag.Name) {
+		cfg.Eth.OverrideBerlin = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideBerlinFlag.Name))
+	}
+	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Configure catalyst.
+	if ctx.GlobalBool(utils.CatalystFlag.Name) {
+		if eth == nil {
+			utils.Fatalf("Catalyst does not work in light client mode.")
+		}
+		if err := catalyst.Register(stack, eth); err != nil {
+			utils.Fatalf("%v", err)
+		}
+	}
+
+	// Configure GraphQL if requested
+	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
+		utils.RegisterGraphQLService(stack, backend, cfg.Node)
+	}
+	// Add the Ethereum Stats daemon if requested.
+	if cfg.Ethstats.URL != "" {
+		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
+	}
+	return stack, backend, eth
+}
+
+
 
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
