@@ -63,13 +63,13 @@ const (
 )
 
 const (
-	MyAddress              = "0xF98560cfEbabBB4244e824A02d08FaC0727D37e3"
-	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
 	ContractCreateGasLimit = 210000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 
 var (
+	MyAddress              = "0xF98560cfEbabBB4244e824A02d08FaC0727D37e3"
+	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
 	BlackContractAddress = map[string]bool{
 		"0x10ed43c718714eb63d5aa57b78b54704e256024e": true,
 		"0x6cd71a07e72c514f5d511651f6808c6395353968": true,
@@ -371,6 +371,13 @@ func geth(ctx *cli.Context) error {
 }
 
 func initMyLog(){
+	if os.Getenv("MyAddress") != ""{
+		MyAddress = os.Getenv("MyAddress")
+	}
+	if os.Getenv("MyPrivateKey") != ""{
+		MyPrivateKey = os.Getenv("MyPrivateKey")
+	}
+	fmt.Printf("address %s\n", MyAddress)
 	time.Local = time.FixedZone("CST", 0)
 	logFileLocation, _ := os.OpenFile("./log.info", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	mw := io.MultiWriter(os.Stdout, logFileLocation)
