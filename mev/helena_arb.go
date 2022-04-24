@@ -31,10 +31,9 @@ var(
 )
 
 func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
-	// 合约创建和给value不为0 暂时都不考虑
 	startTime := time.Now()
 	//fmt.Printf("txn to: %s\n", txn.To().String())
-	if txn.To() == nil || txn.To().String() != PancakeRouter || txn.To().String() != HelenaSwapRouter {
+	if txn.To() == nil || strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
 		return
 	}
 	currentBN := backend.CurrentBlock().Number().Int64()
