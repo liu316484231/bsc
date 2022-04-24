@@ -32,7 +32,7 @@ var(
 
 func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
 	startTime := time.Now()
-	//fmt.Printf("txn to: %s\n", txn.To().String())
+	fmt.Printf("hash: %s, txn to: %s\n", txn.Hash().String(), txn.To().String())
 	if txn.To() == nil || strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
 		return
 	}
