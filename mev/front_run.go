@@ -202,6 +202,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 
 }
 
+// need to improve
 func isProfitable(logs []*types.Log) bool {
 	if len(logs) == 0 {
 		return false
@@ -217,6 +218,10 @@ func isProfitable(logs []*types.Log) bool {
 				//amount > 0
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
+					// todo: 具体去看这个币 值多少钱 如果很少 没有抢的意义
+					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
+
+
 					return true
 				}
 			}
