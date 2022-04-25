@@ -32,7 +32,8 @@ var(
 
 func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
 	startTime := time.Now()
-	if txn == nil || txn.To() == nil || strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
+	if txn == nil || txn.To() == nil{
+	//|| strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
 		return
 	}
 	fmt.Printf("hash: %s, txn to: %s\n", txn.Hash().String(), txn.To().String())
@@ -59,12 +60,12 @@ func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Et
 
 	if receipt.Status == 1 {
 		logs := state.Logs()
-		parseLogs(logs, txn)
+		parseLogs(logs, txn, backend)
 		fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
 	}
 }
 
-func parseLogs(logs []*types.Log, txn *types.Transaction) {
+func parseLogs(logs []*types.Log, txn *types.Transaction, backend ethapi.Backend) {
 	if len(logs) == 0 {
 		return
 	}
@@ -81,6 +82,7 @@ func parseLogs(logs []*types.Log, txn *types.Transaction) {
 				// 卖HELENA
 				if amount.Cmp(ETHER) == 1{
 					myLog.Printf("sell hash: %s", txn.Hash().String())
+
 				}
 
 			}
@@ -89,6 +91,7 @@ func parseLogs(logs []*types.Log, txn *types.Transaction) {
 				// 买HELENA
 				if amount.Cmp(ETHER) == 1{
 					myLog.Printf("sell hash: %s", txn.Hash().String())
+
 				}
 			}
 
