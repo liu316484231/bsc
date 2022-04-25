@@ -32,10 +32,11 @@ var(
 
 func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
 	startTime := time.Now()
-	fmt.Printf("hash: %s, txn to: %s\n", txn.Hash().String(), txn.To().String())
-	if txn.To() == nil || strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
+	if txn == nil || txn.To() == nil || strings.ToLower(txn.To().String()) != strings.ToLower(PancakeRouter) || strings.ToLower(txn.To().String()) != strings.ToLower(HelenaSwapRouter) {
 		return
 	}
+	fmt.Printf("hash: %s, txn to: %s\n", txn.Hash().String(), txn.To().String())
+
 	currentBN := backend.CurrentBlock().Number().Int64()
 	//fmt.Printf("current bn %d\n", currentBN)
 	statedb, header, err := backend.StateAndHeaderByNumberOrHash(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(currentBN)))
