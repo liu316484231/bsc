@@ -3,6 +3,7 @@ package mev
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -74,11 +75,10 @@ func parseLogs(logs []*types.Log, txn *types.Transaction, backend ethapi.Backend
 		if len(topics) == 3 && strings.ToLower(topics[0].String()) == strings.ToLower(TransferEventHash) {
 			//data 为amount
 			token := log.Address.String()
-			//from := common.HexToAddress(topics[1].Hex()).String()
-			//to := common.HexToAddress(topics[2].Hex()).String()
+			from := common.HexToAddress(topics[1].Hex()).String()
+			to := common.HexToAddress(topics[2].Hex()).String()
 			amount := big.NewInt(0).SetBytes(log.Data)
-			if strings.ToLower(token) == strings.ToLower(WBNBAddress){
-				//&& strings.ToLower(from) == strings.ToLower(PairAddress)
+			if strings.ToLower(token) == strings.ToLower(WBNBAddress) && strings.ToLower(from) == strings.ToLower(PairAddress){
 				// 卖HELENA
 				if amount.Cmp(ETHER) == 1{
 					myLog.Printf("sell hash: %s", txn.Hash().String())
@@ -87,8 +87,7 @@ func parseLogs(logs []*types.Log, txn *types.Transaction, backend ethapi.Backend
 
 			}
 
-			if  strings.ToLower(token) == strings.ToLower(WBNBAddress){
-				//&& to == PairAddress
+			if  strings.ToLower(token) == strings.ToLower(WBNBAddress) && strings.ToLower(to) == strings.ToLower(PairAddress){
 				// 买HELENA
 				if amount.Cmp(ETHER) == 1{
 					myLog.Printf("sell hash: %s", txn.Hash().String())
