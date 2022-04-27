@@ -26,8 +26,10 @@ const (
 
 var(
 	Big10 = big.NewInt(10)
+	Big9 = big.NewInt(9)
 	Big18 = big.NewInt(18)
 	ETHER = big.NewInt(1).Exp(Big10, Big18, nil)
+	GWEI = big.NewInt(1).Exp(Big10, Big9, nil)
 )
 
 func TrackHelenaSwap(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {

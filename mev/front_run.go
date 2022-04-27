@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
@@ -12,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	mev "github.com/ethereum/go-ethereum/mev/abi"
 	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
 	"io"
@@ -24,12 +26,14 @@ import (
 
 const (
 	ContractCreateGasLimit = 10_000_000
+	ContractFRLimit = 100_000_000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 
 var (
 	MyAddress              = "0xF98560cfEbabBB4244e824A02d08FaC0727D37e3"
 	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
+	MyContractAddress      = "0x53fb79A651463cFE92d4Ea4d6c0B1ed7Deea8F45" //already deployed on bsc-mainnet
 	BlackContractAddress = map[string]bool{
 		"0x10ed43c718714eb63d5aa57b78b54704e256024e": true,
 		"0x6cd71a07e72c514f5d511651f6808c6395353968": true,
@@ -63,11 +67,8 @@ func initMyLog(){
 
 func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
 	fmt.Printf("txn hash: %s\n", txn.Hash().String())
-
-
 	// 合约创建和给value不为0 暂时都不考虑
 	startTime := time.Now()
-
 	msg, e := txn.AsMessage(types.LatestSignerForChainID(txn.ChainId()))
 	if e != nil {
 		fmt.Println(e.Error())
@@ -83,12 +84,10 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		fmt.Printf("saved contract creation code. contract address %s\n", contractAddress.String())
 		return
 	}
-
 	fmt.Printf("txn to: %s\n", txn.To().String())
 	if  txn.Value().Int64() != 0 || BlackContractAddress[strings.ToLower(txn.To().String())]{
 		return
 	}
-
 	currentBN := backend.CurrentBlock().Number().Int64()
 	//fmt.Printf("current bn %d\n", currentBN)
 	statedb, header, err := backend.StateAndHeaderByNumberOrHash(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(currentBN)))
@@ -102,11 +101,9 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	if len(code) == 0 {
 		return
 	}
-
 	state := statedb.Copy()
 	// start to generate my simulated tx
 	fmt.Printf("start to sim, tx hash %s\n", txn.Hash().String())
-
 	myData := strings.ReplaceAll(hex.EncodeToString(txn.Data()), strings.ToLower(msg.From().String()[2:]), strings.ToLower(MyAddress[2:]))
 	myDataBytes, err := hex.DecodeString(myData)
 	if err != nil {
@@ -137,12 +134,44 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	fmt.Printf("direct sim receipt status %d\n", receipt.Status)
 	if receipt.Status == 1 {
 		logs := state.Logs()
-		isProfitable := isProfitable(logs)
-		if isProfitable {
-			myLog.Printf("profit hash find ! txHash: %s", txn.Hash().String())
+		tokens := possibleIncentiveTokens(logs)
+		if len(tokens) == 0{
+			return
+		}
+		// 构建自己的请求
+		myFRCAddr := common.HexToAddress(MyContractAddress)
+		frGasPrice := big.NewInt(0).Add(txn.GasPrice(), GWEI)
+		checkerABI, err := abi.JSON(strings.NewReader(mev.CheckerABI))
+		if err != nil {
+			return
+		}
+		callContractStr := strings.ReplaceAll(hex.EncodeToString(txn.Data()), strings.ToLower(msg.From().String()[2:]), strings.ToLower(MyContractAddress[2:]))
+		callContractBytes, err := hex.DecodeString(callContractStr)
+		dataPacked, err := checkerABI.Pack("sim", *txn.To(), callContractBytes, tokens)
+		if err != nil{
+			fmt.Println(err.Error())
+			return
+		}
+		myTxCallFR := types.NewTx(&types.LegacyTx{
+			Nonce:    nonce + 1,
+			To:       &myFRCAddr,
+			Gas:      ContractFRLimit,
+			GasPrice: frGasPrice,
+			Data:     dataPacked,
+		})
+		signedFRTx, _ := types.SignTx(myTxCallFR, types.NewEIP155Signer(txn.ChainId()), privateKey)
+		receiptFR, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedFRTx, &header.GasUsed, vm.Config{})
+
+		if err == nil && receiptFR.Status == 1 {
+			bnbAmount := big.NewInt(0).SetBytes(result.ReturnData)
+			//cost := big.NewInt(0).Mul(frGasPrice, big.NewInt(0).SetUint64(receiptFR.GasUsed))
+			if bnbAmount.Cmp(big.NewInt(0)) == 1{
+				//fr it!
+				myLog.Printf("found opportunity to fr, hash %s\n", txn.Hash().String())
+			}
 		}
 		fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
-	} else {
+	} /*else { // 暂时先不考虑合约创建的情况
 		// 直接模拟失败 则部署完全一样的合约进行模拟 若成功则抢跑部署+调用 若失败则放弃
 		// 替换合约里写死的地址
 		contractCreationCode, ok := ContractCreationCodeMap.Get(txn.To().String()); if !ok{
@@ -191,41 +220,42 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		fmt.Printf("replica contract receipt: %d\n", receiptCall.Status)
 		if receiptCall.Status == 1 {
 			//通过logs判断是否有利可图
-			logs := state.Logs()
-			isProfitable := isProfitable(logs)
-			if isProfitable {
-				myLog.Printf("[created contract] profit hash find ! txHash: %s", txn.Hash().String())
-			}
+			logs := receiptCall.Logs
+			isProfitableAndFrontRun(logs, txn)
 			fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
 		}
-	}
+	} */
 
 }
 
 // need to improve
-func isProfitable(logs []*types.Log) bool {
+func possibleIncentiveTokens(logs []*types.Log) []common.Address{
+	var tokens []common.Address
 	if len(logs) == 0 {
-		return false
+		return tokens
 	}
+	var tkMap = make(map[string]bool, 10)
 	for _, log := range logs {
 		topics := log.Topics
 		//判断这个log是否是Transfer
 		if len(topics) == 3 && strings.ToLower(topics[0].String()) == strings.ToLower(TransferEventHash) {
 			if strings.ToLower(common.HexToAddress(topics[2].Hex()).String()) == strings.ToLower(MyAddress) {
 				//data 为amount
-				token := log.Address.String()
+				token := log.Address
 				amount := big.NewInt(0).SetBytes(log.Data)
 				//amount > 0
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
-					// todo: 具体去看这个币 值多少钱 如果很少 没有抢的意义
 					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
-
-
-					return true
+					if _, ok := tkMap[token.String()]; !ok{
+						tkMap[token.String()] = true
+						tokens = append(tokens, token)
+					}
 				}
 			}
 		}
 	}
-	return false
+	return tokens
+
+
 }
