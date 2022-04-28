@@ -33,7 +33,7 @@ const (
 var (
 	MyAddress              = "0xF98560cfEbabBB4244e824A02d08FaC0727D37e3"
 	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
-	MyContractAddress      = "0x53fb79A651463cFE92d4Ea4d6c0B1ed7Deea8F45" //already deployed on bsc-mainnet
+	MyContractAddress      = "0xfEcce0De36743802767d4436E1658F6A66c0200a" //fixed one, already deployed on bsc-mainnet
 	BlackContractAddress = map[string]bool{
 		"0x10ed43c718714eb63d5aa57b78b54704e256024e": true,
 		"0x6cd71a07e72c514f5d511651f6808c6395353968": true,
@@ -67,7 +67,6 @@ func initMyLog(){
 
 func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
 	fmt.Printf("txn hash: %s\n", txn.Hash().String())
-	// 合约创建和给value不为0 暂时都不考虑
 	startTime := time.Now()
 	msg, e := txn.AsMessage(types.LatestSignerForChainID(txn.ChainId()))
 	if e != nil {
