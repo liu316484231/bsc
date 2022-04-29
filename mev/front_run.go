@@ -174,6 +174,10 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 			myLog.Printf("get price err: %s\n", err.Error())
 			return
 		}
+		if receiptPO.Status == 0{
+			myLog.Printf("get price receipt: %d\n", receipt.Status)
+			return
+		}
 		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
 		if tokenPriceRate.Cmp(big.NewInt(0)) == 0{
 			return
