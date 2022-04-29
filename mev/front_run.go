@@ -27,7 +27,7 @@ import (
 const (
 	ContractCreateGasLimit = 10_000_000
 	ContractFRLimit = 100_000_000
-	GeneralGasLimit = 100_000_000
+	GeneralGasLimit = 22_000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 
@@ -164,7 +164,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		priceTx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce + 1,
 			To:       &oracleAddr,
-			Gas:      GeneralGasLimit,
+			Gas:      txn.Gas(),
 			GasPrice: txn.GasPrice(),
 			Data:     dataPacked,
 		})
