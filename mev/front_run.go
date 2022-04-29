@@ -44,7 +44,7 @@ var (
 		"0x45c54210128a065de780c4b0df3d16664f7f859e": true,
 		"0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31": true,
 		"0x3a6d8ca21d1cf76f653a67577fa0d27453350dd8": true,
-		"0x0000000000004946c0e9F43F4Dee607b0eF1fA1c": true, //chi token?
+		"0x0000000000004946c0e9f43f4dee607b0ef1fa1c": true, //chi token?
 	}
 
 	//全局lru
