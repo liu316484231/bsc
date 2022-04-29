@@ -36,7 +36,7 @@ var (
 	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
 	//MyContractAddress      = "0xfEcce0De36743802767d4436E1658F6A66c0200a" //fixed one, already deployed on bsc-mainnet
 	PriceOracleAddress     = "0xfbD61B037C325b959c0F6A7e69D8f37770C2c550" //bsc-mainnet
-	//PriceOracleAddress     = "0x8a5691232996ab401FAFB8ac893C08Da0e2F0b95" //test
+	//PriceOracleAddress     = "0xb6E3aE5ef1019a202B16CCAe530C07C039F58b8d" //test
 	BUSDAddress            = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
 	BlackContractAddress = map[string]bool{
 		"0x10ed43c718714eb63d5aa57b78b54704e256024e": true,
@@ -100,9 +100,9 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		return
 	}
 	//对于每次模拟copy一份进行
-	code := statedb.GetCode(*txn.To())
+	//code := statedb.GetCode(*txn.To())
 	//code为0是普通转账
-	if len(code) == 0 {
+	if len(txn.Data()) == 0 {
 		return
 	}
 	state := statedb.Copy()
@@ -155,7 +155,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		if err != nil {
 			return
 		}
-		dataPacked, err := priceOracleABI.Pack("getRate", *token, common.HexToAddress(BUSDAddress), false)
+		dataPacked, err := priceOracleABI.Pack("getRate", *token, common.HexToAddress(BUSDAddress), true)
 		if err != nil{
 			fmt.Println(err.Error())
 			return
@@ -169,19 +169,19 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 			Data:     dataPacked,
 		})
 		signedPriceTx, _ := types.SignTx(priceTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
-		_, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
-		if err != nil{
-			fmt.Println(err.Error())
+		receiptPO, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
+		if err != nil || receiptPO.Status != 1{
+			myLog.Printf("price status: %d, err: %s\n", receiptPO.Status, err.Error())
 			return
 		}
 		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
 		if tokenPriceRate.Cmp(big.NewInt(0)) == 0{
 			return
 		}
-		multiplier := big.NewInt(0).Mul(amount, Big18)
+		multiplier := big.NewInt(0).Mul(amount, ETHER)
 		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
 		myLog.Printf("profit calculated.. txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
-		if value.Cmp(Big18) == 1{
+		if value.Cmp(ETHER) == 1{
 			//todo: 大于一刀才抢跑
 		}
 		fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
@@ -258,7 +258,7 @@ func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common
 				//amount > 0
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
-					myLog.Printf("tx: %s, transfer amount %d(token %s) to me\n", txn.Hash().String(), amount.Uint64(), token)
+					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
 					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
 					// calculate the usd value of the free token
 					return &token, amount
