@@ -166,6 +166,9 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 			return
 		}
 		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
+		if tokenPriceRate.Cmp(big.NewInt(0)) == 0{
+			return
+		}
 		multiplier := big.NewInt(0).Mul(amount, Big18)
 		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
 		myLog.Printf("found! txn: %s, token: %s, value: %s\n", txn.Hash().String(), token.String(), value.String())
