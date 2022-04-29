@@ -251,7 +251,7 @@ func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common
 		topics := log.Topics
 		//判断这个log是否是Transfer
 		if len(topics) == 3 && strings.ToLower(topics[0].String()) == strings.ToLower(TransferEventHash) {
-			if strings.ToLower(common.HexToAddress(topics[2].Hex()).String()) == strings.ToLower(MyAddress) {
+			if  strings.ToLower(common.HexToAddress(topics[1].Hex()).String()) != strings.ToLower(MyAddress) &&strings.ToLower(common.HexToAddress(topics[2].Hex()).String()) == strings.ToLower(MyAddress) {
 				//data 为amount
 				token := log.Address
 				amount := big.NewInt(0).SetBytes(log.Data)
