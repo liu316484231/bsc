@@ -170,7 +170,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		})
 		signedPriceTx, _ := types.SignTx(priceTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
 		receiptPO, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
-		if err != nil || receiptPO.Status != 1{
+		if err != nil {
 			myLog.Printf("price status: %d, err: %s\n", receiptPO.Status, err.Error())
 			return
 		}
