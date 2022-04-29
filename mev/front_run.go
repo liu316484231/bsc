@@ -27,13 +27,17 @@ import (
 const (
 	ContractCreateGasLimit = 10_000_000
 	ContractFRLimit = 100_000_000
+	GeneralGasLimit = 100_000_000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 
 var (
 	MyAddress              = "0xF98560cfEbabBB4244e824A02d08FaC0727D37e3"
 	MyPrivateKey           = "5adcad86a2c64251ba3454b385bfb19a52733a50495159ccd4c6185263377cfc"
-	MyContractAddress      = "0xfEcce0De36743802767d4436E1658F6A66c0200a" //fixed one, already deployed on bsc-mainnet
+	//MyContractAddress      = "0xfEcce0De36743802767d4436E1658F6A66c0200a" //fixed one, already deployed on bsc-mainnet
+	PriceOracleAddress     = "0xfbD61B037C325b959c0F6A7e69D8f37770C2c550" //bsc-mainnet
+	//PriceOracleAddress     = "0x8a5691232996ab401FAFB8ac893C08Da0e2F0b95" //test
+	BUSDAddress            = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
 	BlackContractAddress = map[string]bool{
 		"0x10ed43c718714eb63d5aa57b78b54704e256024e": true,
 		"0x6cd71a07e72c514f5d511651f6808c6395353968": true,
@@ -60,7 +64,7 @@ func initMyLog(){
 	fmt.Printf("address %s\n", MyAddress)
 	fmt.Println("init my configs")
 	time.Local = time.FixedZone("CST", 0)
-	logFileLocation, _ := os.OpenFile("./log.info", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	logFileLocation, _ := os.OpenFile("./info.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	mw := io.MultiWriter(os.Stdout, logFileLocation)
 	myLog.SetOutput(mw)
 }
@@ -133,41 +137,40 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	fmt.Printf("direct sim receipt status %d\n", receipt.Status)
 	if receipt.Status == 1 {
 		logs := state.Logs()
-		tokens := possibleIncentiveTokens(logs)
-		if len(tokens) == 0{
+		token, amount := possibleIncentiveTokens(logs)
+		if token == nil || amount == nil{
 			return
 		}
-		// 构建自己的请求
-		myFRCAddr := common.HexToAddress(MyContractAddress)
-		frGasPrice := big.NewInt(0).Add(txn.GasPrice(), GWEI)
-		checkerABI, err := abi.JSON(strings.NewReader(mev.CheckerABI))
+		//// 构建price oracle请求 理论是一定能成功的
+		priceOracleABI, err := abi.JSON(strings.NewReader(mev.PriceOracleABI))
 		if err != nil {
 			return
 		}
-		callContractStr := strings.ReplaceAll(hex.EncodeToString(txn.Data()), strings.ToLower(msg.From().String()[2:]), strings.ToLower(MyContractAddress[2:]))
-		callContractBytes, err := hex.DecodeString(callContractStr)
-		dataPacked, err := checkerABI.Pack("sim", *txn.To(), callContractBytes, tokens)
+		dataPacked, err := priceOracleABI.Pack("getRate", *token, common.HexToAddress(BUSDAddress), false)
 		if err != nil{
 			fmt.Println(err.Error())
 			return
 		}
-		myTxCallFR := types.NewTx(&types.LegacyTx{
+		oracleAddr := common.HexToAddress(PriceOracleAddress)
+		priceTx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce + 1,
-			To:       &myFRCAddr,
-			Gas:      ContractFRLimit,
-			GasPrice: frGasPrice,
+			To:       &oracleAddr,
+			Gas:      GeneralGasLimit,
+			GasPrice: txn.GasPrice(),
 			Data:     dataPacked,
 		})
-		signedFRTx, _ := types.SignTx(myTxCallFR, types.NewEIP155Signer(txn.ChainId()), privateKey)
-		receiptFR, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedFRTx, &header.GasUsed, vm.Config{})
-
-		if err == nil && receiptFR.Status == 1 {
-			bnbAmount := big.NewInt(0).SetBytes(result.ReturnData)
-			//cost := big.NewInt(0).Mul(frGasPrice, big.NewInt(0).SetUint64(receiptFR.GasUsed))
-			if bnbAmount.Cmp(big.NewInt(0)) == 1{
-				//fr it!
-				myLog.Printf("found opportunity to fr, hash %s\n", txn.Hash().String())
-			}
+		signedPriceTx, _ := types.SignTx(priceTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
+		_, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
+		if err != nil{
+			fmt.Println(err.Error())
+			return
+		}
+		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
+		multiplier := big.NewInt(0).Mul(amount, Big18)
+		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
+		myLog.Printf("found! txn: %s, token: %s, value: %s\n", txn.Hash().String(), token.String(), value.String())
+		if value.Cmp(Big18) == 1{
+			//todo: 大于一刀才抢跑
 		}
 		fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
 	} /*else { // 暂时先不考虑合约创建的情况
@@ -227,13 +230,11 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 
 }
 
-// need to improve
-func possibleIncentiveTokens(logs []*types.Log) []common.Address{
-	var tokens []common.Address
+// need to improve todo: 暂时只返回了一个
+func possibleIncentiveTokens(logs []*types.Log) (*common.Address, *big.Int){
 	if len(logs) == 0 {
-		return tokens
+		return nil, nil
 	}
-	var tkMap = make(map[string]bool, 10)
 	for _, log := range logs {
 		topics := log.Topics
 		//判断这个log是否是Transfer
@@ -246,15 +247,11 @@ func possibleIncentiveTokens(logs []*types.Log) []common.Address{
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
 					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
-					if _, ok := tkMap[token.String()]; !ok{
-						tkMap[token.String()] = true
-						tokens = append(tokens, token)
-					}
+					// calculate the usd value of the free token
+					return &token, amount
 				}
 			}
 		}
 	}
-	return tokens
-
-
+	return nil, nil
 }
