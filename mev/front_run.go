@@ -88,7 +88,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		return
 	}
 	fmt.Printf("txn to: %s\n", txn.To().String())
-	if  txn.Value().Int64() != 0 || BlackContractAddress[strings.ToLower(txn.To().String())]{
+	if  txn.Value().Cmp(big.NewInt(0)) != 0 || BlackContractAddress[strings.ToLower(txn.To().String())]{
 		return
 	}
 	currentBN := backend.CurrentBlock().Number().Int64()
@@ -105,8 +105,17 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		return
 	}
 	state := statedb.Copy()
+	gp := new(core.GasPool).AddGas(math.MaxUint64)
+
 	// start to generate my simulated tx
 	fmt.Printf("start to sim, tx hash %s\n", txn.Hash().String())
+
+	ogReceipt, err := core.ApplyTransaction(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, txn, &header.GasUsed, vm.Config{})
+	if err != nil || ogReceipt.Status == 0{
+		//原始请求就不能够成功
+		return
+	}
+
 	myData := strings.ReplaceAll(hex.EncodeToString(txn.Data()), strings.ToLower(msg.From().String()[2:]), strings.ToLower(MyAddress[2:]))
 	myDataBytes, err := hex.DecodeString(myData)
 	if err != nil {
@@ -127,7 +136,6 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	privateKey, _ := crypto.HexToECDSA(MyPrivateKey)
 	signedTx, _ := types.SignTx(myTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
 
-	gp := new(core.GasPool).AddGas(math.MaxUint64)
 	// done: generate new txn instead of target one, replace from and data
 	receipt, err := core.ApplyTransaction(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedTx, &header.GasUsed, vm.Config{})
 	if err != nil {
@@ -171,7 +179,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		}
 		multiplier := big.NewInt(0).Mul(amount, Big18)
 		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
-		myLog.Printf("found! txn: %s, token: %s, value: %s\n", txn.Hash().String(), token.String(), value.String())
+		myLog.Printf("found! txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
 		if value.Cmp(Big18) == 1{
 			//todo: 大于一刀才抢跑
 		}
