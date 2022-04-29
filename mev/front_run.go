@@ -44,7 +44,7 @@ var (
 		"0x45c54210128a065de780c4b0df3d16664f7f859e": true,
 		"0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31": true,
 		"0x3a6d8ca21d1cf76f653a67577fa0d27453350dd8": true,
-		"0x0000000000004946c0e9F43F4Dee607b0eF1fA1c": true,
+		"0x0000000000004946c0e9F43F4Dee607b0eF1fA1c": true, //chi token?
 	}
 
 	//全局lru
@@ -146,7 +146,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	fmt.Printf("direct sim receipt status %d\n", receipt.Status)
 	if receipt.Status == 1 {
 		logs := state.Logs()
-		token, amount := possibleIncentiveTokens(logs)
+		token, amount := possibleIncentiveTokens(logs, txn)
 		if token == nil || amount == nil{
 			return
 		}
@@ -180,7 +180,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		}
 		multiplier := big.NewInt(0).Mul(amount, Big18)
 		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
-		myLog.Printf("found! txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
+		myLog.Printf("profit calculated.. txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
 		if value.Cmp(Big18) == 1{
 			//todo: 大于一刀才抢跑
 		}
@@ -243,7 +243,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 }
 
 // need to improve todo: 暂时只返回了一个
-func possibleIncentiveTokens(logs []*types.Log) (*common.Address, *big.Int){
+func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common.Address, *big.Int){
 	if len(logs) == 0 {
 		return nil, nil
 	}
@@ -258,6 +258,7 @@ func possibleIncentiveTokens(logs []*types.Log) (*common.Address, *big.Int){
 				//amount > 0
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
+					myLog.Printf("tx: %s, transfer amount %d(token %s) to me\n", txn.Hash().String(), amount.Uint64(), token)
 					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
 					// calculate the usd value of the free token
 					return &token, amount
