@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
@@ -13,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	mev "github.com/ethereum/go-ethereum/mev/abi"
 	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
 	"io"
@@ -29,6 +27,12 @@ const (
 	ContractFRLimit = 100_000_000
 	GeneralGasLimit = 22_000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+	WbnbAddress = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+	UsdtAddress = "0x55d398326f99059fF775485246999027B3197955"
+	BusdAddress = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
+	UsdcAddress = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+
 )
 
 var (
@@ -146,50 +150,50 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 	fmt.Printf("direct sim receipt status %d\n", receipt.Status)
 	if receipt.Status == 1 {
 		logs := state.Logs()
-		token, amount := possibleIncentiveTokens(logs, txn)
-		if token == nil || amount == nil{
-			return
-		}
-		//// 构建price oracle请求 理论是一定能成功的
-		priceOracleABI, err := abi.JSON(strings.NewReader(mev.PriceOracleABI))
-		if err != nil {
-			return
-		}
-		dataPacked, err := priceOracleABI.Pack("getRate", *token, common.HexToAddress(BUSDAddress), true)
-		if err != nil{
-			fmt.Println(err.Error())
-			return
-		}
-		oracleAddr := common.HexToAddress(PriceOracleAddress)
-		priceTx := types.NewTx(&types.LegacyTx{
-			Nonce:    nonce + 1,
-			To:       &oracleAddr,
-			Gas:      txn.Gas(),
-			GasPrice: txn.GasPrice(),
-			Data:     dataPacked,
-		})
-		signedPriceTx, _ := types.SignTx(priceTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
-		receiptPO, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
-		if err != nil {
-			myLog.Printf("get price err: %s\n", err.Error())
-			return
-		}
-		if receiptPO.Status == 0{
-			myLog.Printf("get price receipt failed: %d\n", receiptPO.Status)
-			return
-		}
-		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
-		if tokenPriceRate.Cmp(big.NewInt(0)) == 0{
-			return
-		}
-		multiplier := big.NewInt(0).Mul(amount, ETHER)
-		value := big.NewInt(0).Div(multiplier, tokenPriceRate)
-		myLog.Printf("profit calculated.. txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
-		if value.Cmp(ETHER) == 1{
-			//todo: 大于一刀才抢跑
-		}
-		fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
-	} /*else { // 暂时先不考虑合约创建的情况
+		checkProfit(logs, txn)
+		//if token == nil || amount == nil{
+		//	return
+		//}
+		////// 构建price oracle请求 理论是一定能成功的
+		//priceOracleABI, err := abi.JSON(strings.NewReader(mev.PriceOracleABI))
+		//if err != nil {
+		//	return
+		//}
+		//dataPacked, err := priceOracleABI.Pack("getRate", *token, common.HexToAddress(BUSDAddress), true)
+		//if err != nil{
+		//	fmt.Println(err.Error())
+		//	return
+		//}
+		//oracleAddr := common.HexToAddress(PriceOracleAddress)
+		//priceTx := types.NewTx(&types.LegacyTx{
+		//	Nonce:    nonce + 1,
+		//	To:       &oracleAddr,
+		//	Gas:      txn.Gas(),
+		//	GasPrice: txn.GasPrice(),
+		//	Data:     dataPacked,
+		//})
+		//signedPriceTx, _ := types.SignTx(priceTx, types.NewEIP155Signer(txn.ChainId()), privateKey)
+		//receiptPO, result, err := core.ApplyTransactionWithResult(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, signedPriceTx, &header.GasUsed, vm.Config{})
+		//if err != nil {
+		//	myLog.Printf("get price err: %s\n", err.Error())
+		//	return
+		//}
+		//if receiptPO.Status == 0{
+		//	myLog.Printf("get price receipt failed: %d\n", receiptPO.Status)
+		//	return
+		//}
+		//tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
+		//if tokenPriceRate.Cmp(big.NewInt(0)) == 0{
+		//	return
+		//}
+		//multiplier := big.NewInt(0).Mul(amount, ETHER)
+		//value := big.NewInt(0).Div(multiplier, tokenPriceRate)
+		//myLog.Printf("profit calculated.. txn: %s, to: %s, token: %s, value: %s\n", txn.Hash().String(), txn.To().String(), token.String(), value.String())
+		//if value.Cmp(ETHER) == 1{
+		//	//todo: 大于一刀才抢跑
+		//}
+		//fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
+	} else { // 暂时先不考虑合约创建的情况
 		// 直接模拟失败 则部署完全一样的合约进行模拟 若成功则抢跑部署+调用 若失败则放弃
 		// 替换合约里写死的地址
 		contractCreationCode, ok := ContractCreationCodeMap.Get(txn.To().String()); if !ok{
@@ -239,25 +243,25 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 		if receiptCall.Status == 1 {
 			//通过logs判断是否有利可图
 			logs := receiptCall.Logs
-			isProfitableAndFrontRun(logs, txn)
+			checkProfit(logs, txn)
 			fmt.Printf("time used %d ms\n", time.Since(startTime).Milliseconds())
 		}
-	} */
+	}
 
 }
 
 // need to improve todo: 暂时只返回了一个
-func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common.Address, *big.Int){
+func checkProfit(logs []*types.Log, txn *types.Transaction) (*common.Address, *big.Int){
 	if len(logs) == 0 {
 		return nil, nil
 	}
 	for _, log := range logs {
 		topics := log.Topics
-		topic := topics[0].String()
-		fromAddr := common.HexToAddress(topics[1].Hex())
-		toAddr := common.HexToAddress(topics[2].Hex())
+
 		//判断这个log是否是Transfer
-		if len(topics) == 3 && strings.ToLower(topic) == strings.ToLower(TransferEventHash) {
+		if len(topics) == 3 && strings.ToLower(topics[0].String()) == strings.ToLower(TransferEventHash) {
+			fromAddr := common.HexToAddress(topics[1].Hex())
+			toAddr := common.HexToAddress(topics[2].Hex())
 			if  fromAddr.String() == toAddr.String(){
 				continue
 			}
@@ -266,7 +270,11 @@ func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common
 				token := log.Address
 				amount := big.NewInt(0).SetBytes(log.Data)
 				//amount > 0
-				if amount.Cmp(big.NewInt(0)) == 1{
+				if strings.ToLower(token.String()) == strings.ToLower(WbnbAddress) && amount.Cmp(big.NewInt(0).Div(ETHER, big.NewInt(100))) == 1{
+					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
+					//front run
+				}
+				if (strings.ToLower(token.String()) == strings.ToLower(BusdAddress) || strings.ToLower(token.String()) == strings.ToLower(UsdcAddress) || strings.ToLower(token.String()) == strings.ToLower(UsdtAddress)) && amount.Cmp(ETHER) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
 					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
 					// 需要写一个合约 将可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
