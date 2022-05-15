@@ -20,7 +20,7 @@ import (
 
 
 func init(){
-	initMyLog()
+	//initMyLog()
 }
 
 
