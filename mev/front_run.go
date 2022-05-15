@@ -175,7 +175,7 @@ func SimulateTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereu
 			return
 		}
 		if receiptPO.Status == 0{
-			myLog.Printf("get price receipt: %d\n", receipt.Status)
+			myLog.Printf("get price receipt failed: %d\n", receiptPO.Status)
 			return
 		}
 		tokenPriceRate := big.NewInt(0).SetBytes(result.ReturnData)
@@ -253,9 +253,15 @@ func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common
 	}
 	for _, log := range logs {
 		topics := log.Topics
+		topic := topics[0].String()
+		fromAddr := common.HexToAddress(topics[1].Hex())
+		toAddr := common.HexToAddress(topics[2].Hex())
 		//判断这个log是否是Transfer
-		if len(topics) == 3 && strings.ToLower(topics[0].String()) == strings.ToLower(TransferEventHash) {
-			if  strings.ToLower(common.HexToAddress(topics[1].Hex()).String()) != strings.ToLower(MyAddress) &&strings.ToLower(common.HexToAddress(topics[2].Hex()).String()) == strings.ToLower(MyAddress) {
+		if len(topics) == 3 && strings.ToLower(topic) == strings.ToLower(TransferEventHash) {
+			if  fromAddr.String() == toAddr.String(){
+				continue
+			}
+			if strings.ToLower(toAddr.String()) == strings.ToLower(MyAddress){
 				//data 为amount
 				token := log.Address
 				amount := big.NewInt(0).SetBytes(log.Data)
@@ -263,7 +269,7 @@ func possibleIncentiveTokens(logs []*types.Log, txn *types.Transaction) (*common
 				if amount.Cmp(big.NewInt(0)) == 1{
 					fmt.Printf("transfer amount %d(token %s) to me\n", amount.Uint64(), token)
 					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
-					// 需要写一个合约 讲可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
+					// 需要写一个合约 将可能增加的erc20代币 扔到合约里计算最终拿到的等同于多少BNB
 					// calculate the usd value of the free token
 					return &token, amount
 				}
