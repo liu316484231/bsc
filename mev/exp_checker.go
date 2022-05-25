@@ -68,6 +68,9 @@ func SimulateOriginalTx(txn *types.Transaction, backend ethapi.Backend, eth *eth
 		logs := state.Logs()
 		for _, log := range logs {
 			topics := log.Topics
+			if len(topics) == 0{
+				continue
+			}
 			if strings.ToLower(topics[0].String()) == strings.ToLower(DodoFlashloanEvent){
 				myLog.Printf("tx: %s, dodo flashloan exploit.. \n", txn.Hash().String())
 			}
