@@ -27,6 +27,7 @@ const (
 	ContractFRLimit = 100_000_000
 	GeneralGasLimit = 22_000
 	TransferEventHash      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	DodoFlashloanEvent      = "0x0b82e93068db15abd9fbb2682c65462ea8a0a10582dce93a5664818e296f54eb"
 
 	WbnbAddress = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
 	UsdtAddress = "0x55d398326f99059fF775485246999027B3197955"
