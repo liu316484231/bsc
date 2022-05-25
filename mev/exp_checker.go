@@ -16,7 +16,7 @@ import (
 
 
 func SimulateOriginalTx(txn *types.Transaction, backend ethapi.Backend, eth *eth.Ethereum) {
-	fmt.Printf("txn hash: %s\n", txn.Hash().String())
+	//fmt.Printf("txn hash: %s\n", txn.Hash().String())
 	msg, e := txn.AsMessage(types.LatestSignerForChainID(txn.ChainId()))
 	if e != nil {
 		fmt.Println(e.Error())
@@ -47,7 +47,7 @@ func SimulateOriginalTx(txn *types.Transaction, backend ethapi.Backend, eth *eth
 	//balanceBeforeTo := state.GetBalance(*to)
 	gp := new(core.GasPool).AddGas(math.MaxUint64)
 	// start to generate my simulated tx
-	fmt.Printf("start to sim, tx hash %s\n", txn.Hash().String())
+	fmt.Printf("start to sim, tx hash %s, from: %s \n", txn.Hash().String(), from.String())
 	ogReceipt, err := core.ApplyTransaction(backend.ChainConfig(), eth.BlockChain(), &header.Coinbase, gp, state, header, txn, &header.GasUsed, vm.Config{})
 	if err != nil || ogReceipt.Status == 0 {
 		//原始请求就不能够成功
@@ -69,7 +69,11 @@ func SimulateOriginalTx(txn *types.Transaction, backend ethapi.Backend, eth *eth
 		for _, log := range logs {
 			topics := log.Topics
 			if strings.ToLower(topics[0].String()) == strings.ToLower(DodoFlashloanEvent){
-				myLog.Printf("tx: %s, from: %s,  dodo flashloan exploit.. \n", txn.Hash().String(), from.String())
+				myLog.Printf("tx: %s, dodo flashloan exploit.. \n", txn.Hash().String())
+			}
+
+			if strings.ToLower(topics[0].String()) == strings.ToLower(ValasLendingFlashloanEvent){
+				myLog.Printf("tx: %s, valas lending flashloan exploit.. \n", txn.Hash().String())
 			}
 
 			//判断这个log是否是Transfer
