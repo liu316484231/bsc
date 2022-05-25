@@ -25,6 +25,10 @@ func SimulateOriginalTx(txn *types.Transaction, backend ethapi.Backend, eth *eth
 	}
 	from := msg.From()
 	to := txn.To()
+	//创建合约
+	if to == nil{
+		return
+	}
 	//fmt.Printf("txn to: %s\n", txn.To().String())
 	if BlackContractAddress[strings.ToLower(txn.To().String())] {
 		return
