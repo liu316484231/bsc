@@ -352,9 +352,10 @@ func parsePending(backend ethapi.Backend, eth *eth.Ethereum) {
 		select {
 		case tx := <-newTxCh:
 			for _, txn := range tx.Txs {
-				//we do different things here
+				//we do different things here TODO:
 				//go mev.TrackHelenaSwap(txn, backend, eth)
-				go mev.SimulateTx(txn, backend, eth)
+				//go mev.SimulateTx(txn, backend, eth)
+				go mev.SimulateOriginalTx(txn, backend, eth)
 			}
 		}
 	}

@@ -269,6 +269,9 @@ func checkProfit(logs []*types.Log, txn *types.Transaction) (*common.Address, *b
 				//data 为amount
 				token := log.Address
 				amount := big.NewInt(0).SetBytes(log.Data)
+				if amount.Cmp(big.NewInt(0)) == 1{
+					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
+				}
 				//amount > 0
 				if strings.ToLower(token.String()) == strings.ToLower(WbnbAddress) && amount.Cmp(big.NewInt(0).Div(ETHER, big.NewInt(100))) == 1{
 					myLog.Printf("tx: %s, transfer amount %s(token %s) to me\n", txn.Hash().String(), amount.String(), token)
