@@ -340,7 +340,7 @@ func geth(ctx *cli.Context) error {
 	startNode(ctx, stack, backend)
 	//启动一个routine做我的事情
 	//todo
-	go parsePending(backend, eth)
+	//go parsePending(backend, eth)
 	stack.Wait()
 	return nil
 }
