@@ -334,7 +334,7 @@ func geth(ctx *cli.Context) error {
 	}
 
 	prepare(ctx)
-	stack, backend, eth := makeFullNodeWithEthereum(ctx)
+	stack, backend, _ := makeFullNodeWithEthereum(ctx)
 	defer stack.Close()
 
 	startNode(ctx, stack, backend)
