@@ -370,7 +370,7 @@ func onTopOfBlock(backend ethapi.Backend, eth *eth.Ethereum) {
 				}
 				fmt.Printf("new block: %s max Gas: %s \n", latestBlock.Number().String(), maxGas.String())
 				// TODO: on top of block strategy
-				// go..
+				go mev.SimRebaseTokenSkim(backend, eth, maxGas)
 			}
 		}
 	}
