@@ -20,6 +20,7 @@ package main
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/mev"
 	"os"
 	"sort"
@@ -334,16 +335,38 @@ func geth(ctx *cli.Context) error {
 	}
 
 	prepare(ctx)
-	stack, backend, _ := makeFullNodeWithEthereum(ctx)
+	stack, backend, eth := makeFullNodeWithEthereum(ctx)
 	defer stack.Close()
 
 	startNode(ctx, stack, backend)
 	//启动一个routine做我的事情
 	//todo
 	//go parsePending(backend, eth)
+	go onTopOfBlock(backend, eth)
 	stack.Wait()
 	return nil
 }
+
+var latestBlock *types.Block = nil
+func onTopOfBlock(backend ethapi.Backend, eth *eth.Ethereum) {
+	for {
+		curBlock := backend.CurrentBlock()
+		if latestBlock == nil {
+			latestBlock = curBlock
+		} else {
+			if latestBlock.Number().Cmp(curBlock.Number()) == 0 {
+				//
+				continue
+			}else{
+				latestBlock = curBlock
+				fmt.Printf("new block: %s", latestBlock.Number().String())
+				// TODO: on top of block strategy
+				// go..
+			}
+		}
+	}
+}
+
 
 func parsePending(backend ethapi.Backend, eth *eth.Ethereum) {
 	newTxCh := make(chan core.NewTxsEvent)
