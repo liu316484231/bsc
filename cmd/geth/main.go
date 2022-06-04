@@ -359,7 +359,7 @@ func onTopOfBlock(backend ethapi.Backend, eth *eth.Ethereum) {
 				continue
 			}else{
 				latestBlock = curBlock
-				fmt.Printf("new block: %s", latestBlock.Number().String())
+				fmt.Printf("new block: %s \n", latestBlock.Number().String())
 				// TODO: on top of block strategy
 				// go..
 			}
