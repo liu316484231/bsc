@@ -336,14 +336,14 @@ func geth(ctx *cli.Context) error {
 	}
 
 	prepare(ctx)
-	stack, backend, eth := makeFullNodeWithEthereum(ctx)
+	stack, backend, _ := makeFullNodeWithEthereum(ctx)
 	defer stack.Close()
 
 	startNode(ctx, stack, backend)
 	//启动一个routine做我的事情
 	//todo
 	//go parsePending(backend, eth)
-	go onTopOfBlock(backend, eth)
+	//go onTopOfBlock(backend, eth)
 	stack.Wait()
 	return nil
 }
