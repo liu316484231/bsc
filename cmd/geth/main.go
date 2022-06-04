@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/mev"
+	"math/big"
 	"os"
 	"sort"
 	"strconv"
@@ -359,7 +360,15 @@ func onTopOfBlock(backend ethapi.Backend, eth *eth.Ethereum) {
 				continue
 			}else{
 				latestBlock = curBlock
-				fmt.Printf("new block: %s \n", latestBlock.Number().String())
+				txns, _ := backend.GetPoolTransactions()
+				var maxGas *big.Int = big.NewInt(0)
+				for _, tx := range txns{
+					txGas := tx.GasPrice()
+					if txGas.Cmp(maxGas) == 1{
+						maxGas = txGas
+					}
+				}
+				fmt.Printf("new block: %s max Gas: %s \n", latestBlock.Number().String(), maxGas.String())
 				// TODO: on top of block strategy
 				// go..
 			}
