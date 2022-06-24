@@ -282,7 +282,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 	}
-
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
 		Err:        vmerr,

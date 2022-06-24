@@ -361,7 +361,7 @@ func onTopOfBlock(backend ethapi.Backend, eth *eth.Ethereum) {
 			}else{
 				latestBlock = curBlock
 				txns, _ := backend.GetPoolTransactions()
-				var maxGas *big.Int = big.NewInt(0)
+				var maxGas = big.NewInt(0)
 				for _, tx := range txns{
 					txGas := tx.GasPrice()
 					if txGas.Cmp(maxGas) == 1{
@@ -398,7 +398,6 @@ func parsePending(backend ethapi.Backend, eth *eth.Ethereum) {
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	debug.Memsize.Add("node", stack)
-	fmt.Println("my custom node started..")
 	// Start up the node itself
 	utils.StartNode(ctx, stack)
 

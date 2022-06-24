@@ -120,6 +120,7 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Register built-in APIs.
+	// TODO: register my custom APIs
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
 
 	// Acquire the instance directory lock.
